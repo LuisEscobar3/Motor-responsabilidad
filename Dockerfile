@@ -14,6 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt uvicorn[standard] h2
 
 COPY . .
 
+
+
 EXPOSE 8080
 
 # Ejecución con los timeouts que pediste (10 min) y protocolo h2
