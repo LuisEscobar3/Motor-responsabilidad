@@ -59,7 +59,7 @@ def subir_a_gcs(ruta_local):
 
 
 async def ejecutar_test():
-    url_api = "http://127.0.0.1:8000/process-case"
+    url_api = "https://ia-mv-motor-responsabilidad-993828145189.us-east1.run.app/process-case"
 
     archivos = {
         "pdf": "ejemplo/sebastian.ortiz.matiz@segurosbolivar.com - 15400065559/15400065559.pdf",

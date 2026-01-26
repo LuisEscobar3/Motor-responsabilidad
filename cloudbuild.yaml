@@ -1,6 +1,5 @@
 steps:
-  # 0. ASEGURAR QUE EL REPOSITORIO EXISTA
-  # Usamos el nombre que definimos: ms-motor-responsabilidad
+  # 0. Crear el repositorio si no existe
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'bash'
     args:
@@ -10,22 +9,15 @@ steps:
         --repository-format=docker \
         --location=us-east1 || exit 0
 
-  # 1. BUILD DE LA IMAGEN
+  # 1. Build
   - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'build',
-      '-t', 'us-east1-docker.pkg.dev/$PROJECT_ID/ms-motor-responsabilidad/motor-img:$COMMIT_SHA',
-      '.'
-    ]
+    args: [ 'build', '-t', 'us-east1-docker.pkg.dev/$PROJECT_ID/ms-motor-responsabilidad/motor-img:$COMMIT_SHA', '.' ]
 
-  # 2. PUSH AL ARTIFACT REGISTRY
+  # 2. Push
   - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'push',
-      'us-east1-docker.pkg.dev/$PROJECT_ID/ms-motor-responsabilidad/motor-img:$COMMIT_SHA'
-    ]
+    args: [ 'push', 'us-east1-docker.pkg.dev/$PROJECT_ID/ms-motor-responsabilidad/motor-img:$COMMIT_SHA' ]
 
-  # 3. DEPLOY A CLOUD RUN (Sin autenticación y con el nuevo nombre)
+  # 3. Deploy compatible con Apps Script
   - id: "deploy cloud run"
     name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: /bin/bash
@@ -40,14 +32,8 @@ steps:
         --memory 8Gi \
         --cpu 4 \
         --timeout 600 \
-        --concurrency 80 \
-        --cpu-boost \
         --use-http2 \
+        --no-cpu-throttling \
+        --cpu-boost \
         --set-env-vars PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=bucket-motor-responsabilidad,APP_ENV=sbx \
         --labels billing-tag=ia-mv-motor-responsabilidad,vp=patrimoniales,team=movildiad,tipo=proyecto
-
-options:
-  logging: CLOUD_LOGGING_ONLY
-
-images:
-  - 'us-east1-docker.pkg.dev/$PROJECT_ID/ms-motor-responsabilidad/motor-img:$COMMIT_SHA'
