@@ -1,13 +1,13 @@
 steps:
-  # 1. Build the container image
+  # 1. Build de la imagen del contenedor
   - name: 'gcr.io/cloud-builders/docker'
-    args: [ 'build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/mi-repo/motor-responsabilidad:$COMMIT_SHA', '.' ]
+    args: [ 'build', '-t', 'us-east1-docker.pkg.dev/$PROJECT_ID/mi-repo/motor-responsabilidad:$COMMIT_SHA', '.' ]
 
-  # 2. Push the container image to Artifact Registry
+  # 2. Push al Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: [ 'push', 'us-central1-docker.pkg.dev/$PROJECT_ID/mi-repo/motor-responsabilidad:$COMMIT_SHA' ]
+    args: [ 'push', 'us-east1-docker.pkg.dev/$PROJECT_ID/mi-repo/motor-responsabilidad:$COMMIT_SHA' ]
 
-  # 3. Deploy container image to Cloud Run con Configuración Óptima
+  # 3. Deploy a Cloud Run con recursos de alta capacidad y HTTP/2
   - id: "deploy cloud run"
     name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: /bin/bash
@@ -15,8 +15,8 @@ steps:
       - "-c"
       - |
         gcloud run deploy motor-responsabilidad-service \
-        --region us-central1 \
-        --image us-central1-docker.pkg.dev/$PROJECT_ID/mi-repo/motor-responsabilidad:$COMMIT_SHA \
+        --region us-east1 \
+        --image us-east1-docker.pkg.dev/$PROJECT_ID/mi-repo/motor-responsabilidad:$COMMIT_SHA \
         --no-allow-unauthenticated \
         --port 8080 \
         --memory 8Gi \
@@ -25,9 +25,12 @@ steps:
         --concurrency 80 \
         --cpu-boost \
         --use-http2 \
-        --service-account makers-npatr-19@sandbox-ia-404016.iam.gserviceaccount.com \
         --set-env-vars PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=bucket-motor-responsabilidad,APP_ENV=sbx \
         --labels billing-tag=ia-mv-motor-responsabilidad,vp=patrimoniales,team=movildiad,tipo=proyecto
 
+# Configuración necesaria para evitar error de logs al usar Service Accounts personalizadas
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 images:
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/mi-repo/motor-responsabilidad:$COMMIT_SHA'
+  - 'us-east1-docker.pkg.dev/$PROJECT_ID/mi-repo/motor-responsabilidad:$COMMIT_SHA'
