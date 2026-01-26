@@ -24,6 +24,7 @@ pandas
 openpyxl
 
 # --- Validaciones y Utils ---
+pydantic
 pydantic[email]
 python-dotenv
 pyyaml
