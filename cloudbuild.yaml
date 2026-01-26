@@ -1,13 +1,32 @@
 steps:
-  # 1. Build de la imagen del contenedor
-  - name: 'gcr.io/cloud-builders/docker'
-    args: [ 'build', '-t', 'us-east1-docker.pkg.dev/$PROJECT_ID/mi-repo/motor-responsabilidad:$COMMIT_SHA', '.' ]
+  # 0. ASEGURAR QUE EL REPOSITORIO EXISTA
+  # Si no existe, lo crea. Si ya existe, el "|| exit 0" evita que el build falle.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud artifacts repositories create ms-motor-responsabilidad \
+        --repository-format=docker \
+        --location=us-east1 \
+        --description="Repo para el Motor de Responsabilidad" || exit 0
 
-  # 2. Push al Artifact Registry
+  # 1. BUILD DE LA IMAGEN
   - name: 'gcr.io/cloud-builders/docker'
-    args: [ 'push', 'us-east1-docker.pkg.dev/$PROJECT_ID/mi-repo/motor-responsabilidad:$COMMIT_SHA' ]
+    args: [
+      'build',
+      '-t', 'us-east1-docker.pkg.dev/$PROJECT_ID/ms-motor-responsabilidad/motor-img:$COMMIT_SHA',
+      '.'
+    ]
 
-  # 3. Deploy a Cloud Run con recursos de alta capacidad y HTTP/2
+  # 2. PUSH AL ARTIFACT REGISTRY
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'push',
+      'us-east1-docker.pkg.dev/$PROJECT_ID/ms-motor-responsabilidad/motor-img:$COMMIT_SHA'
+    ]
+
+  # 3. DEPLOY A CLOUD RUN (Configuración Elite)
   - id: "deploy cloud run"
     name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: /bin/bash
@@ -16,7 +35,7 @@ steps:
       - |
         gcloud run deploy motor-responsabilidad-service \
         --region us-east1 \
-        --image us-east1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/motor-responsabilidad:$COMMIT_SHA \
+        --image us-east1-docker.pkg.dev/$PROJECT_ID/ms-motor-responsabilidad/motor-img:$COMMIT_SHA \
         --no-allow-unauthenticated \
         --port 8080 \
         --memory 8Gi \
@@ -28,9 +47,8 @@ steps:
         --set-env-vars PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=bucket-motor-responsabilidad,APP_ENV=sbx \
         --labels billing-tag=ia-mv-motor-responsabilidad,vp=patrimoniales,team=movildiad,tipo=proyecto
 
-# Configuración necesaria para evitar error de logs al usar Service Accounts personalizadas
 options:
   logging: CLOUD_LOGGING_ONLY
 
 images:
-  - 'us-east1-docker.pkg.dev/$PROJECT_ID/mi-repo/motor-responsabilidad:$COMMIT_SHA'
+  - 'us-east1-docker.pkg.dev/$PROJECT_ID/ms-motor-responsabilidad/motor-img:$COMMIT_SHA'
