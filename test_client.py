@@ -1,5 +1,4 @@
 import sys
-
 import httpx
 import asyncio
 import os
@@ -14,23 +13,14 @@ storage_client = storage.Client(project=PROJECT_ID)
 
 
 def verificar_descarga_completa(blob_name):
-    """
-    Simula exactamente lo que hará el proceso:
-    Descargar el archivo completo desde el bucket.
-    """
     try:
         bucket = storage_client.bucket(BUCKET_NAME)
         blob = bucket.blob(blob_name)
-
         t_descarga_ini = time.perf_counter()
-        # Intentamos descargar los bytes completos a RAM
         contenido = blob.download_as_bytes()
         t_descarga_fin = time.perf_counter() - t_descarga_ini
-
         tamano_mb = len(contenido) / (1024 * 1024)
-        print(f"📥 [VERIFICACIÓN] Descarga exitosa: {blob_name}")
-        print(f"   -> Tamaño: {tamano_mb:.2f} MB")
-        print(f"   -> Tiempo de descarga: {t_descarga_fin:.2f}s")
+        print(f"📥 [VERIFICACIÓN] Descarga exitosa: {blob_name} ({tamano_mb:.2f} MB) en {t_descarga_fin:.2f}s")
         return True
     except Exception as e:
         print(f"❌ [VERIFICACIÓN] Error descargando {blob_name}: {e}")
@@ -38,20 +28,15 @@ def verificar_descarga_completa(blob_name):
 
 
 def subir_a_gcs(ruta_local):
-    """Sube y verifica descarga inmediata."""
     if not os.path.exists(ruta_local):
         print(f"⚠️ Archivo no encontrado: {ruta_local}")
         return None
-
     nombre_archivo = os.path.basename(ruta_local)
     bucket = storage_client.bucket(BUCKET_NAME)
     blob = bucket.blob(nombre_archivo)
-
     print(f"📤 Subiendo {nombre_archivo}...", end=" ", flush=True)
     blob.upload_from_filename(ruta_local)
     print("✅")
-
-    # REALIZAR LA VERIFICACIÓN DE DESCARGA
     if verificar_descarga_completa(nombre_archivo):
         return f"gs://{BUCKET_NAME}/{nombre_archivo}"
     else:
@@ -59,6 +44,7 @@ def subir_a_gcs(ruta_local):
 
 
 async def ejecutar_test():
+    # URL actualizada al nombre del servicio que definimos
     url_api = "https://ia-mv-motor-responsabilidad-993828145189.us-east1.run.app/process-case"
 
     archivos = {
@@ -67,16 +53,15 @@ async def ejecutar_test():
         "audio2": "ejemplo/sebastian.ortiz.matiz@segurosbolivar.com - 15400065559/Llamada1-e9181c80-9ec7-4d8f-aed5-8c3b71b7cf09.MP3"
     }
 
-    print("\n🚀 [PASO 1] Iniciando Subida y Verificación de Descarga...")
+    print("\n🚀 [PASO 1] Iniciando Subida y Verificación...")
     uris = {}
     for key, path in archivos.items():
         uri = subir_a_gcs(path)
         if not uri:
-            print(f"🛑 FALLO CRÍTICO: No se pudo verificar la descarga de {key}. El proceso fallará.")
+            print(f"🛑 FALLO CRÍTICO en subida de {key}")
             return
         uris[key] = uri
 
-    # 2. Llamada al API
     payload = {
         "case_id": f"TEST-GCS-{int(time.time())}",
         "urls_visuales": [uris["pdf"]],
@@ -84,18 +69,27 @@ async def ejecutar_test():
         "urls_videos": []
     }
 
-    print(f"\n📡 [PASO 2] Enviando URLs al proceso...")
+    print(f"\n📡 [PASO 2] Enviando a Cloud Run (Modo Compatible)...")
 
-    async with httpx.AsyncClient(timeout=None) as client:
+    # AJUSTE CRÍTICO:
+    # 1. Desactivamos http2 temporalmente para asegurar que el proxy no resetee la conexión.
+    # 2. El timeout debe ser None o muy alto (600s) para esperar a la IA.
+    async with httpx.AsyncClient(http2=False, timeout=600.0) as client:
         try:
+            t_ini = time.perf_counter()
             response = await client.post(url_api, json=payload)
+            t_total = time.perf_counter() - t_ini
+
+            print(f"⏱️ Tiempo de respuesta del modelo: {t_total:.2f}s")
+
             if response.status_code == 200:
-                print("✅ API completada.")
-                print("Resultado:",
-                      response.json().get('resultado', {})['conclusion_general_del_caso']['dinamica_consolidada'][:150],
-                      "...")
+                print("✅ API completada con éxito.")
+                data = response.json()
+                # Ajusta la impresión según la estructura de tu JSON de respuesta
+                print("Resultado:", str(data)[:300], "...")
             else:
-                print(f"❌ Error API: {response.text}")
+                print(f"❌ Error API ({response.status_code}): {response.text}")
+
         except Exception as e:
             print(f"❌ Error de conexión: {e}")
 
