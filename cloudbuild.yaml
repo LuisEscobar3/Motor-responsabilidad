@@ -1,5 +1,6 @@
 steps:
-  # 0. Crear el repositorio si no existe
+  # 0. ASEGURAR QUE EL REPOSITORIO EXISTA
+  # Si el repositorio ms-motor-responsabilidad no existe, lo crea automáticamente.
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'bash'
     args:
@@ -7,18 +8,26 @@ steps:
       - |
         gcloud artifacts repositories create ms-motor-responsabilidad \
         --repository-format=docker \
-        --location=us-east1 || exit 0
+        --location=us-east1 \
+        --description="Repositorio para el Motor de Responsabilidad" || exit 0
 
-  # 1. Build
+  # 1. CONSTRUCCIÓN DE LA IMAGEN (BUILD)
   - name: 'gcr.io/cloud-builders/docker'
-    args: [ 'build', '-t', 'us-east1-docker.pkg.dev/$PROJECT_ID/ms-motor-responsabilidad/motor-img:$COMMIT_SHA', '.' ]
+    args: [
+      'build',
+      '-t', 'us-east1-docker.pkg.dev/$PROJECT_ID/ms-motor-responsabilidad/motor-img:$COMMIT_SHA',
+      '.'
+    ]
 
-  # 2. Push
+  # 2. SUBIDA AL REGISTRO (PUSH)
   - name: 'gcr.io/cloud-builders/docker'
-    args: [ 'push', 'us-east1-docker.pkg.dev/$PROJECT_ID/ms-motor-responsabilidad/motor-img:$COMMIT_SHA' ]
+    args: [
+      'push',
+      'us-east1-docker.pkg.dev/$PROJECT_ID/ms-motor-responsabilidad/motor-img:$COMMIT_SHA'
+    ]
 
-  # 3. Deploy compatible con Apps Script
-  - id: "deploy cloud run"
+  # 3. DESPLIEGUE A CLOUD RUN (Configuración de Alta Potencia y Pública)
+  - id: "deploy-cloud-run"
     name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: /bin/bash
     args:
@@ -32,8 +41,16 @@ steps:
         --memory 8Gi \
         --cpu 4 \
         --timeout 600 \
-        --use-http2 \
-        --no-cpu-throttling \
+        --concurrency 80 \
         --cpu-boost \
+        --no-cpu-throttling \
+        --use-http2 \
         --set-env-vars PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=bucket-motor-responsabilidad,APP_ENV=sbx \
         --labels billing-tag=ia-mv-motor-responsabilidad,vp=patrimoniales,team=movildiad,tipo=proyecto
+
+# ✅ CORRECCIÓN DEL ERROR DE LOGS Y SERVICE ACCOUNT
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+images:
+  - 'us-east1-docker.pkg.dev/$PROJECT_ID/ms-motor-responsabilidad/motor-img:$COMMIT_SHA'
