@@ -20,7 +20,7 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: [ 'push', 'us-east1-docker.pkg.dev/$PROJECT_ID/ms-motor-responsabilidad/motor-img:$COMMIT_SHA' ]
 
-  # 3. DEPLOY ULTRA-RÁPIDO (Configurado para 3+ procesos de IA en paralelo)
+  # 3. DEPLOY DE ALTO RENDIMIENTO
   - id: "deploy-cloud-run"
     name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: /bin/bash
@@ -34,8 +34,9 @@ steps:
         --port 8080 \
         --cpu 8 \
         --memory 8Gi \
-        --concurrency 1 \
+        --concurrency 80 \
         --min-instances 1 \
+        --max-instances 10 \
         --timeout 600 \
         --no-cpu-throttling \
         --cpu-boost \
