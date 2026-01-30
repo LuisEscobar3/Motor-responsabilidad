@@ -6,7 +6,7 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Instalamos ffmpeg para procesamiento de audio/video y herramientas de compilación
+# Instalamos ffmpeg y herramientas base
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     ffmpeg \
@@ -22,6 +22,6 @@ COPY . .
 
 EXPOSE 8080
 
-# 🚀 Formato uvicorn con Workers para paralelismo real
-# Se calculan 9 workers (2 * 4 CPUs + 1) para optimizar los 8 CPUs asignados
-CMD ["uvicorn", "mainAPI:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "9", "--timeout-keep-alive", "650"]
+# 🚀 Ajustado a 2 workers para balancear rendimiento y bajo consumo de RAM
+# Esto evita que la instancia muera cuando el script externo recorta los recursos.
+CMD ["uvicorn", "mainAPI:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "2", "--timeout-keep-alive", "650"]
